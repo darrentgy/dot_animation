@@ -1,115 +1,459 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dot Animation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粒子形态变换动画</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
         :root {
-            color-scheme: light dark;
+            --ui-font-family: 'VT323', monospace;
+            --ui-font-size: 18px;
+            --ui-text-color: #e0e0e0;
+            --ui-bg-color: rgba(0, 0, 0, 0.5);
+            --ui-border-color: #00aaff;
         }
 
-        * {
-            box-sizing: border-box;
-        }
-
-        html,
         body {
-            height: 100%;
             margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: var(--ui-text-color);
+            font-family: var(--ui-font-family);
         }
 
-        body {
-            display: grid;
-            place-items: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-            background: radial-gradient(1200px 800px at 50% -20%, rgba(100, 100, 255, 0.08), transparent 60%);
+        canvas#c {
+            display: block;
         }
 
-        .card {
-            padding: 24px 28px;
-            border-radius: 14px;
-            border: 1px solid rgba(128, 128, 128, .25);
-            backdrop-filter: blur(6px);
-            background: color-mix(in oklab, canvas, canvasText 2%);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
-            text-align: center;
-            max-width: 520px;
+        #info-top {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: var(--ui-bg-color);
+            border: 1px solid var(--ui-border-color);
+            border-radius: 8px;
+            font-size: var(--ui-font-size);
+            letter-spacing: 1px;
+            pointer-events: none;
+            /* Can't click on it */
         }
 
-        h1 {
-            margin: 0 0 10px;
-            font-weight: 700;
-            font-size: 22px;
-        }
-
-        p {
-            margin: 0 0 16px;
-            opacity: .8;
-        }
-
-        .dots {
-            display: inline-flex;
-            gap: 8px;
+        #ui-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
             align-items: center;
+            gap: 15px;
+            background: var(--ui-bg-color);
+            padding: 20px;
+            border: 1px solid var(--ui-border-color);
+            border-radius: 12px;
         }
 
-        .dot {
-            width: 10px;
-            height: 10px;
+        #change-shape-btn {
+            font-family: var(--ui-font-family);
+            font-size: var(--ui-font-size);
+            background-color: #005a8c;
+            color: var(--ui-text-color);
+            border: 1px solid var(--ui-border-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            letter-spacing: 1px;
+        }
+
+        #change-shape-btn:hover {
+            background-color: #007bb8;
+            box-shadow: 0 0 15px var(--ui-border-color);
+        }
+
+        #color-palette {
+            display: flex;
+            gap: 10px;
+        }
+
+        .color-swatch {
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            background: currentColor;
-            opacity: .6;
-            animation: bounce 1.2s infinite ease-in-out;
+            cursor: pointer;
+            border: 2px solid #555;
+            transition: transform 0.2s, border-color 0.2s;
         }
 
-        .dot:nth-child(2) {
-            animation-delay: .15s;
+        .color-swatch:hover {
+            transform: scale(1.1);
         }
 
-        .dot:nth-child(3) {
-            animation-delay: .30s;
-        }
-
-        @keyframes bounce {
-
-            0%,
-            80%,
-            100% {
-                transform: translateY(0) scale(1);
-                opacity: .6;
-            }
-
-            40% {
-                transform: translateY(-6px) scale(1.1);
-                opacity: 1;
-            }
-        }
-
-        .hint {
-            font-size: 12px;
-            opacity: .6;
-            margin-top: 10px;
-        }
-
-        a {
-            color: inherit;
+        .color-swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 10px #fff;
         }
     </style>
 </head>
 
 <body>
-    <main class="card" role="main" aria-label="Dot animation demo">
-        <h1>本地页面已就绪</h1>
-        <p>这是一个包含点点动效的示例页面。</p>
-        <div class="dots" aria-hidden="true" title="Loading dots animation">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
+
+    <div id="info-top">Shape: Sphere (Click to morph)</div>
+
+    <div id="ui-container">
+        <button id="change-shape-btn">Change Shape</button>
+        <div id="color-palette">
+            <div class="color-swatch active" data-color="orange" style="background: #ff8800;"></div>
+            <div class="color-swatch" data-color="purple" style="background: #9933ff;"></div>
+            <div class="color-swatch" data-color="green" style="background: #00ff00;"></div>
+            <div class="color-swatch" data-color="rainbow"
+                style="background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);">
+            </div>
         </div>
-        <div class="hint">编辑 <code>index.html</code> 即可实时刷新。</div>
-    </main>
+    </div>
+
+    <canvas id="c"></canvas>
+
+    <!-- Import maps for three.js and GSAP -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- Main Application Logic -->
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 7;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#c'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // --- UI ELEMENTS ---
+        const infoText = document.getElementById('info-top');
+        const changeShapeBtn = document.getElementById('change-shape-btn');
+        const colorSwatches = document.querySelectorAll('.color-swatch');
+
+        // --- PARTICLE SYSTEM ---
+        const PARTICLE_COUNT = 30000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(PARTICLE_COUNT * 3);
+        const colors = new Float32Array(PARTICLE_COUNT * 3);
+
+        let initialPositions = new Float32Array(PARTICLE_COUNT * 3);
+
+        const material = new THREE.PointsMaterial({
+            size: 0.05,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.8,
+        });
+
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+
+        // --- STARFIELD BACKGROUND ---
+        const starGeometry = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(5000 * 3);
+        for (let i = 0; i < 5000; i++) {
+            const i3 = i * 3;
+            starPositions[i3] = (Math.random() - 0.5) * 200;
+            starPositions[i3 + 1] = (Math.random() - 0.5) * 200;
+            starPositions[i3 + 2] = (Math.random() - 0.5) * 200;
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff, transparent: true, opacity: 0.5 });
+        const starField = new THREE.Points(starGeometry, starMaterial);
+        scene.add(starField);
+
+        // --- SHAPE GENERATION FUNCTIONS ---
+        // Helper to scale positions to fit view
+        const scalePositions = (arr, scale) => {
+            for (let i = 0; i < arr.length; i++) {
+                arr[i] *= scale;
+            }
+            return arr;
+        };
+
+        const generateSphere = () => {
+            const tempPositions = [];
+            const phi = Math.PI * (3.0 - Math.sqrt(5.0)); // golden angle
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const y = 1 - (i / (PARTICLE_COUNT - 1)) * 2; // -1 to 1
+                const radius = Math.sqrt(1 - y * y);
+                const theta = phi * i;
+                const x = Math.cos(theta) * radius;
+                const z = Math.sin(theta) * radius;
+                tempPositions.push(x, y, z);
+            }
+            return scalePositions(new Float32Array(tempPositions), 3);
+        };
+
+        const generateCube = () => {
+            const tempPositions = [];
+            const size = 1.5;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const side = Math.floor(Math.random() * 6);
+                const u = (Math.random() - 0.5) * 2 * size;
+                const v = (Math.random() - 0.5) * 2 * size;
+                switch (side) {
+                    case 0: tempPositions.push(size, u, v); break; // +X
+                    case 1: tempPositions.push(-size, u, v); break; // -X
+                    case 2: tempPositions.push(u, size, v); break; // +Y
+                    case 3: tempPositions.push(u, -size, v); break; // -Y
+                    case 4: tempPositions.push(u, v, size); break; // +Z
+                    case 5: tempPositions.push(u, v, -size); break; // -Z
+                }
+            }
+            return scalePositions(new Float32Array(tempPositions), 1.5);
+        };
+
+        const generatePyramid = () => {
+            const tempPositions = [];
+            const height = 2;
+            const baseSize = 2;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const random = Math.random();
+                const u = Math.random();
+                const v = Math.random();
+
+                if (random < 0.2) { // Base
+                    tempPositions.push(
+                        (u - 0.5) * baseSize * 2,
+                        -height / 2,
+                        (v - 0.5) * baseSize * 2
+                    );
+                } else { // Sides
+                    let s = u + v;
+                    let tu, tv;
+                    if (s > 1) {
+                        s = 2 - s;
+                        tu = 1 - v;
+                        tv = 1 - u;
+                    } else {
+                        tu = u;
+                        tv = v;
+                    }
+
+                    const side = Math.floor((random - 0.2) / 0.2); // 0, 1, 2, 3
+                    let x, y, z;
+                    const p = new THREE.Vector3(0, height / 2, 0); // Apex
+                    let a = new THREE.Vector3(), b = new THREE.Vector3();
+
+                    if (side === 0) { a.set(-baseSize, -height / 2, baseSize); b.set(baseSize, -height / 2, baseSize); }
+                    else if (side === 1) { a.set(baseSize, -height / 2, baseSize); b.set(baseSize, -height / 2, -baseSize); }
+                    else if (side === 2) { a.set(baseSize, -height / 2, -baseSize); b.set(-baseSize, -height / 2, -baseSize); }
+                    else { a.set(-baseSize, -height / 2, -baseSize); b.set(-baseSize, -height / 2, baseSize); }
+
+                    const finalPos = new THREE.Vector3()
+                        .addScaledVector(p, 1 - s)
+                        .addScaledVector(a, tu * s)
+                        .addScaledVector(b, tv * s);
+
+                    tempPositions.push(finalPos.x, finalPos.y, finalPos.z);
+                }
+            }
+            return scalePositions(new Float32Array(tempPositions), 1.3);
+        };
+
+        const generateTorus = () => {
+            const tempPositions = [];
+            const majorRadius = 1.5;
+            const minorRadius = 0.6;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const u = Math.random() * 2 * Math.PI;
+                const v = Math.random() * 2 * Math.PI;
+                const x = (majorRadius + minorRadius * Math.cos(v)) * Math.cos(u);
+                const y = (majorRadius + minorRadius * Math.cos(v)) * Math.sin(u);
+                const z = minorRadius * Math.sin(v);
+                tempPositions.push(x, y, z);
+            }
+            return scalePositions(new Float32Array(tempPositions), 1.5);
+        };
+
+        const generateGalaxy = () => {
+            const tempPositions = [];
+            const radius = 3.5;
+            const arms = 4;
+            const tightness = 3.0;
+            const bulge = 0.5;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const r = Math.random() * radius;
+                const spin = r * tightness;
+                const arm = Math.floor(Math.random() * arms);
+                const angle = (2 * Math.PI / arms) * arm + spin;
+
+                const randomX = (Math.random() - 0.5) * 0.5;
+                const randomY = (Math.random() - 0.5) * bulge * (1 - r / radius);
+                const randomZ = (Math.random() - 0.5) * 0.5;
+
+                const x = Math.cos(angle) * r + randomX;
+                const y = randomY;
+                const z = Math.sin(angle) * r + randomZ;
+                tempPositions.push(x, y, z);
+            }
+            return new Float32Array(tempPositions);
+        };
+
+        const generateWave = () => {
+            const tempPositions = [];
+            const width = 8;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const x = (Math.random() - 0.5) * width;
+                const z = (Math.random() - 0.5) * width;
+                const d1 = Math.sqrt(Math.pow(x - 2, 2) + Math.pow(z, 2));
+                const d2 = Math.sqrt(Math.pow(x + 2, 2) + Math.pow(z, 2));
+                const y = (Math.sin(d1 * 2) + Math.sin(d2 * 2)) * 0.5;
+                tempPositions.push(x, y, z);
+            }
+            return scalePositions(new Float32Array(tempPositions), 0.7);
+        };
+
+        // --- SHAPE AND COLOR MANAGEMENT ---
+        const shapes = [
+            { name: 'Sphere', generator: generateSphere },
+            { name: 'Cube', generator: generateCube },
+            { name: 'Pyramid', generator: generatePyramid },
+            { name: 'Torus', generator: generateTorus },
+            { name: 'Galaxy', generator: generateGalaxy },
+            { name: 'Wave', generator: generateWave }
+        ];
+        let currentShapeIndex = 0;
+        let isMorphing = false;
+        let currentColorMode = 'orange';
+
+        const colorMap = {
+            orange: new THREE.Color('#ff8800'),
+            purple: new THREE.Color('#9933ff'),
+            green: new THREE.Color('#00ff00')
+        };
+
+        // --- COLOR APPLICATION ---
+        const applyColors = (positionsArray) => {
+            const tempColor = new THREE.Color();
+            if (currentColorMode === 'rainbow') {
+                const maxY = Math.max(...Array.from({ length: PARTICLE_COUNT }, (_, i) => positionsArray[i * 3 + 1]));
+                const minY = Math.min(...Array.from({ length: PARTICLE_COUNT }, (_, i) => positionsArray[i * 3 + 1]));
+                const height = maxY - minY;
+
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    const i3 = i * 3;
+                    const y = positionsArray[i3 + 1];
+                    const hue = ((y - minY) / height) * 0.7; // 0.7 to avoid wrap-around red
+                    tempColor.setHSL(hue, 1.0, 0.6);
+                    colors[i3] = tempColor.r;
+                    colors[i3 + 1] = tempColor.g;
+                    colors[i3 + 2] = tempColor.b;
+                }
+            } else {
+                const color = colorMap[currentColorMode];
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    const i3 = i * 3;
+                    colors[i3] = color.r;
+                    colors[i3 + 1] = color.g;
+                    colors[i3 + 2] = color.b;
+                }
+            }
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        }
+
+        // --- MORPHING LOGIC ---
+        const morphToShape = (index) => {
+            if (isMorphing) return;
+            isMorphing = true;
+            currentShapeIndex = index;
+
+            const targetPositions = shapes[index].generator();
+            initialPositions = geometry.attributes.position.array.slice();
+
+            infoText.textContent = 'Morphing...';
+            changeShapeBtn.disabled = true;
+
+            gsap.to({ progress: 0 }, {
+                progress: 1,
+                duration: 2.5,
+                ease: 'power3.inOut',
+                onUpdate: function () {
+                    const progress = this.targets()[0].progress;
+                    const currentPositions = geometry.attributes.position.array;
+                    for (let i = 0; i < PARTICLE_COUNT; i++) {
+                        const i3 = i * 3;
+                        currentPositions[i3] = initialPositions[i3] * (1 - progress) + targetPositions[i3] * progress;
+                        currentPositions[i3 + 1] = initialPositions[i3 + 1] * (1 - progress) + targetPositions[i3 + 1] * progress;
+                        currentPositions[i3 + 2] = initialPositions[i3 + 2] * (1 - progress) + targetPositions[i3 + 2] * progress;
+                    }
+                    geometry.attributes.position.needsUpdate = true;
+                },
+                onComplete: () => {
+                    // Also update colors based on the final shape
+                    applyColors(targetPositions);
+
+                    isMorphing = false;
+                    infoText.textContent = `Shape: ${shapes[index].name} (Click to morph)`;
+                    changeShapeBtn.disabled = false;
+                }
+            });
+        };
+
+        // --- EVENT LISTENERS ---
+        changeShapeBtn.addEventListener('click', () => {
+            const nextIndex = (currentShapeIndex + 1) % shapes.length;
+            morphToShape(nextIndex);
+        });
+
+        colorSwatches.forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                currentColorMode = swatch.dataset.color;
+                applyColors(geometry.attributes.position.array);
+                colorSwatches.forEach(s => s.classList.remove('active'));
+                swatch.classList.add('active');
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+
+        // --- INITIALIZATION and ANIMATION LOOP ---
+        const initialShapePositions = shapes[0].generator();
+        geometry.setAttribute('position', new THREE.BufferAttribute(initialShapePositions, 3));
+        applyColors(initialShapePositions);
+
+        const clock = new THREE.Clock();
+        const animate = () => {
+            const elapsedTime = clock.getElapsedTime();
+
+            if (!isMorphing) {
+                particles.rotation.y = elapsedTime * 0.1;
+                particles.rotation.x = elapsedTime * 0.05;
+            }
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        };
+
+        animate();
+
+    </script>
 </body>
 
 </html>
